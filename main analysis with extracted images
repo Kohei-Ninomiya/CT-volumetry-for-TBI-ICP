@@ -1,0 +1,131 @@
+# Original Image + LDA + HDA Visualization ⇒ Calculation of ICV, LDV, HDV, and LDV/ICV, HDV/ICV
+# You should change "folder_name" and "60000(←change freely to visualize ICA)"
+
+import os
+import cv2
+import numpy as np
+
+# Path to the folder containing images to process
+folder_path = "folder_name"
+
+# Get all files in the folder
+file_names = os.listdir(folder_path)
+
+# Initialize variables to store the total areas of ICA, LDA, and HDA
+ICA_total_area = 0  # Variable to store the total area of ICA
+LDA_total_area = 0  # Variable to store the total area of LDA
+HDA_total_area = 0  # Variable to store the total area of HDA
+
+for file_name in file_names:
+    # Generate the image file path
+    img_path = os.path.join(folder_path, file_name)  
+    
+    # Read the image
+    img = cv2.imread(img_path)
+    
+    # Extract the contour of the intracranial area (ICA)＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊    
+    # Convert to grayscale
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)    
+    
+    # Binarize the image for skull extraction
+    ret, thresh = cv2.threshold(gray, 250, 255, cv2.THRESH_BINARY)  
+    
+    # Extract contours of the skull
+    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)  
+    
+    # Find the smallest contour that meets the conditions
+    min_area = float('inf')  # Initialize variable to store the smallest area
+    min_area_cnt = None  # Initialize variable to store the contour with the smallest area
+    for cnt in contours:
+        area = cv2.contourArea(cnt)  # Calculate the contour area
+        if area > "60000(←change freely to visualize ICA)"  and area < min_area:  # If the area is larger than a certain value and smaller than the minimum area
+            min_area = area
+            min_area_cnt = cnt    
+            
+    # Draw the contour with the smallest area
+    if min_area_cnt is not None:
+        cv2.drawContours(img, [min_area_cnt], -1, (0, 0, 255), 3)
+        
+        # Display the smallest area (ICA area)
+        cv2.putText(img, f"Min Area: {min_area}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        
+    # LDA
+        # Binarize the image for LDA extraction
+        ret, thresh_LDA = cv2.threshold(gray, 82, 255, cv2.THRESH_BINARY)
+        
+        # Invert the black and white of the LDA image
+        inverted_LDA = cv2.bitwise_not(thresh_LDA)
+        
+        # Create the mask_LDA image
+        mask_LDA = np.zeros_like(gray)  # Create a mask with the same size as the grayscale image  
+        
+        # Create the mask (LDA) using the contour list
+        cv2.fillPoly(mask_LDA, [min_area_cnt], 255)
+        
+        # Extract the masked portion from the inverted LDA image
+        img_AND_LDA = cv2.bitwise_and(inverted_LDA, mask_LDA)    
+        
+        # Calculate the LDA area
+        LDA_area = cv2.countNonZero(img_AND_LDA)
+        
+# HDA
+        # Binarize the image for HDA extraction
+        ret, thresh_HDA = cv2.threshold(gray, 185, 255, cv2.THRESH_BINARY)
+        
+        # Create the mask_HDA image
+        mask_HDA = np.zeros_like(gray)  # Create a mask with the same size as the grayscale image  
+        
+        # Create the mask (HDA) using the contour list
+        cv2.fillPoly(mask_HDA, [min_area_cnt], 255)
+        
+        # Extract the masked portion from the HDA image
+        img_AND_HDA = cv2.bitwise_and(thresh_HDA, mask_HDA) 
+        cv2.drawContours(img_AND_HDA, [min_area_cnt], -1, 0, 15)
+        
+        # Calculate the HDA area
+        HDA_area = cv2.countNonZero(img_AND_HDA)
+        
+
+        # Display the results
+        cv2.namedWindow("gray", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("gray", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow("gray", gray)
+        cv2.waitKey(0)
+        cv2.namedWindow("LDA", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("LDA", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow("LDA", inverted_LDA)
+        cv2.waitKey(0)
+        cv2.namedWindow("img_AND_LDA", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("img_AND_LDA", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow("img_AND_LDA", img_AND_LDA)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        
+        cv2.namedWindow("gray", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("gray", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow("gray", gray)
+        cv2.waitKey(0)
+        cv2.namedWindow("HDA", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("HDA", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow("HDA", thresh_HDA)
+        cv2.waitKey(0)
+        cv2.namedWindow("img_AND_HDA", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("img_AND_HDA", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow("img_AND_HDA", img_AND_HDA)
+        cv2.waitKey(0)     
+        cv2.destroyAllWindows()
+    
+# Sum the areas of ICA, LDA, and HDA
+        ICA_total_area += min_area
+        LDA_total_area += LDA_area
+        HDA_total_area += HDA_area
+
+# Output the total areas of ICV, LDV, and HDV
+print("ICV:", ICA_total_area) 
+print("LDV:", LDA_total_area)
+print("HDV:", HDA_total_area)
+
+# Calculate LDV/ICV and HDV/ICV
+print("LDV/ICV:", LDA_total_area / ICA_total_area)
+print("HDV/ICV:", HDA_total_area / ICA_total_area)
+
